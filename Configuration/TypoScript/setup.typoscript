@@ -1,0 +1,57 @@
+plugin.tx_cart {
+    payments {
+        options {
+            29 {
+                provider = STRIPE
+                title = Stripe
+                extra = 0.00
+                taxClassId = 1
+                status = open
+            }
+        }
+
+        at {
+            options.29 {
+                provider = STRIPE
+                title = Stripe
+                extra = 0.00
+                taxClassId = 1
+                status = open
+            }
+        }
+
+        de {
+            options.29 {
+                provider = STRIPE
+                title = Stripe
+                extra = 0.00
+                taxClassId = 1
+                status = open
+            }
+        }
+    }
+}
+
+cartStripe = PAGE
+cartStripe {
+    typeNum = 2278101
+
+    config {
+        disableAllHeaderCode = 1
+        xhtml_cleaning = 0
+        admPanel = 0
+        debug = 0
+        no_cache = 1
+    }
+
+    10 < tt_content.list.20.cartstripe_cart
+    10.features.requireCHashArgumentForActionArguments = 0
+}
+
+plugin.tx_cartstripe {
+    sandbox = 1
+
+    redirectTypeNum = 2278101
+
+    sendEachItemToStripe = 1
+}

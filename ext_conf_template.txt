@@ -1,0 +1,4 @@
+
+# cat=Feature; type=string; label=Stripe API key: Stripe API key
+
+stripeApiKey =

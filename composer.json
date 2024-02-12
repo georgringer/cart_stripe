@@ -1,0 +1,32 @@
+{
+  "name": "georgringer/cart-stripe",
+  "type": "typo3-cms-extension",
+  "description": "Shopping Cart(s) for TYPO3 - Stripe Payment Provider",
+  "license": [
+    "GPL-2.0+"
+  ],
+  "keywords": [
+    "TYPO3 CMS",
+    "Shopping Cart",
+    "stripe",
+    "cart"
+  ],
+  "autoload": {
+    "psr-4": {
+      "GeorgRinger\\CartStripe\\": "Classes"
+    }
+  },
+  "extra": {
+    "typo3/cms": {
+      "extension-key": "cart_stripe"
+    }
+  },
+  "require": {
+    "ext-curl": "*",
+    "typo3/cms-core": "^11.5",
+    "typo3/cms-extbase": "^11.5",
+    "typo3/cms-frontend": "^11.5",
+    "extcode/cart": "^8.0",
+    "stripe/stripe-php": "^13"
+  }
+}

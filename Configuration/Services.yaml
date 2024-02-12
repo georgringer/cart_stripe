@@ -1,0 +1,26 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  GeorgRinger\CartStripe\:
+    resource: '../Classes/*'
+
+  GeorgRinger\CartStripe\EventListener\Order\Payment\ProviderRedirect:
+    arguments:
+      $configurationManager: '@TYPO3\CMS\Extbase\Configuration\ConfigurationManager'
+      $persistenceManager: '@TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager'
+      $typoScriptService: '@TYPO3\CMS\Core\TypoScript\TypoScriptService'
+      $cartRepository: '@Extcode\Cart\Domain\Repository\CartRepository'
+    tags:
+      - name: event.listener
+        identifier: 'cart-stripe--order--payment--provider-redirect'
+        event: Extcode\Cart\Event\Order\PaymentEvent
+
+#  Extcode\CartPaypal\EventListener\Order\Notify\Email:
+#    class: 'Extcode\Cart\EventListener\Order\Finish\Email'
+#    tags:
+#      - name: event.listener
+#        identifier: 'cart-paypal--order--notify--email'
+#        event: Extcode\CartPaypal\Event\Order\NotifyEvent
