@@ -12,8 +12,10 @@ use Extcode\Cart\Domain\Model\Order\Item as OrderItem;
 use Extcode\Cart\Domain\Repository\CartRepository;
 use Extcode\Cart\Event\Order\PaymentEvent;
 use GeorgRinger\CartStripe\Configuration;
+use http\Exception\UnexpectedValueException;
 use Stripe\Checkout\Session;
 use Stripe\Stripe;
+use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\TypoScript\TypoScriptService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
@@ -64,6 +66,7 @@ class ProviderRedirect
             'CartStripe'
         );
         $this->configuration = new Configuration();
+        $this->loadApi();
     }
 
     public function __invoke(PaymentEvent $event): void
@@ -145,5 +148,20 @@ class ProviderRedirect
             ->setCreateAbsoluteUri(true)
             ->setArguments($arguments)
             ->build();
+    }
+
+    private function loadApi(): void
+    {
+        if (class_exists(Session::class)) {
+            return;
+        }
+        $path = $this->configuration->getNonComposerAutoloadPath();
+        if (empty($path)) {
+            throw new UnexpectedValueException('No path to non composer autoload found', 1627993943);
+        }
+        if (!is_file($path)) {
+            throw new UnexpectedValueException('No file found at path ' . $path, 1627993944);
+        }
+        require_once $path;
     }
 }

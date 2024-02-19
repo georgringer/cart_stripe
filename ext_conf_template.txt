@@ -1,4 +1,6 @@
 
 # cat=Feature; type=string; label=Stripe API key: Stripe API key
-
 stripeApiKey =
+
+# cat=Feature; type=string; label=If not using composer, use this path to load the Stripe library: Path to Stripe library
+nonComposerAutoloadPath =

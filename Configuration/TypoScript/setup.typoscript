@@ -29,6 +29,15 @@ plugin.tx_cart {
                 status = open
             }
         }
+        ch {
+            options.29 {
+                provider = STRIPE
+                title = Stripe
+                extra = 0.00
+                taxClassId = 1
+                status = open
+            }
+        }
     }
 }
 

@@ -10,12 +10,14 @@ class Configuration {
 
     protected int $type = 2278101;
     protected string $stripeApiKey = '';
+    protected string $nonComposerAutoloadPath    = '';
 
     public function __construct() {
 
         try {
             $configuration = GeneralUtility::makeInstance(ExtensionConfiguration::class)->get('cart_stripe');
             $this->stripeApiKey = $configuration['stripeApiKey'] ?? '';
+            $this->nonComposerAutoloadPath = $configuration['nonComposerAutoloadPath'] ?? '';
         } catch (\Exception $e) {
         }
     }
@@ -28,6 +30,11 @@ class Configuration {
     public function getStripeApiKey(): string
     {
         return $this->stripeApiKey;
+    }
+
+    public function getNonComposerAutoloadPath(): string
+    {
+        return $this->nonComposerAutoloadPath;
     }
 
 
