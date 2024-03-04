@@ -94,7 +94,6 @@ class PaymentController extends ActionController
                 if ($orderItem) {
 
                     $payment = $orderItem->getPayment();
-
                     if ($payment->getStatus() !== 'paid') {
                         $payment->setStatus('paid');
                         $this->paymentRepository->update($payment);
@@ -102,7 +101,7 @@ class PaymentController extends ActionController
 
 
                         $this->notify($orderItem);
-                        $this->clearCart($orderItem->getPid());
+                        $this->clearCart($orderItem->getCartPid());
                     }
                 }
 
@@ -144,7 +143,6 @@ class PaymentController extends ActionController
         $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_billing_address_' . $pid, null);
         $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_shipping_address_' . $pid, null);
         $GLOBALS['TSFE']->fe_user->storeSessionData();
-        die('xxclx');
     }
 
     /**
