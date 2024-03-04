@@ -28,10 +28,3 @@ services:
         identifier: 'cart-stripe--order--payment--clear-cart'
         event: Extcode\Cart\Event\Order\PaymentEvent
         before: 'cart-stripe--order--payment--provider-redirect'
-
-#  Extcode\CartPaypal\EventListener\Order\Notify\Email:
-#    class: 'Extcode\Cart\EventListener\Order\Finish\Email'
-#    tags:
-#      - name: event.listener
-#        identifier: 'cart-paypal--order--notify--email'
-#        event: Extcode\CartPaypal\Event\Order\NotifyEvent
