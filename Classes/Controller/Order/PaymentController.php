@@ -30,7 +30,7 @@ class PaymentController extends ActionController
     protected SessionHandler $sessionHandler;
     protected CartRepository $cartRepository;
     protected PaymentRepository $paymentRepository;
-    protected Cart $cart;
+    protected ?Cart $cart = null;
 
     protected array $cartConf = [];
 
@@ -83,9 +83,6 @@ class PaymentController extends ActionController
 
     public function successAction(): void
     {
-//        DebuggerUtility::var_dump(GeneralUtility::_POST());
-//        DebuggerUtility::var_dump($this->request->getArguments());
-//die('xxx');
         if ($this->request->hasArgument('hash') && !empty($this->request->getArgument('hash'))) {
             $this->loadCartByHash($this->request->getArgument('hash'));
 
@@ -107,22 +104,20 @@ class PaymentController extends ActionController
 
                 $this->redirect('show', 'Cart\Order', 'Cart', ['orderItem' => $orderItem]);
             } else {
-                die('error');
                 $this->addFlashMessage(
                     LocalizationUtility::translate(
-                        'tx_cartpaypal.controller.order.payment.action.success.error_occured',
-                        'cart_paypal'
+                        'tx_cartstripe.controller.order.payment.action.success.error_occured',
+                        'cart_stripe'
                     ),
                     '',
                     AbstractMessage::ERROR
                 );
             }
         } else {
-            die('zzzz');
             $this->addFlashMessage(
                 LocalizationUtility::translate(
-                    'tx_cartpaypal.controller.order.payment.action.success.access_denied',
-                    'cart_paypal'
+                    'tx_cartstripe.controller.order.payment.action.success.access_denied',
+                    'cart_stripe'
                 ),
                 '',
                 AbstractMessage::ERROR
@@ -195,8 +190,8 @@ class PaymentController extends ActionController
 
                 $this->addFlashMessage(
                     LocalizationUtility::translate(
-                        'tx_cartpaypal.controller.order.payment.action.cancel.successfully_canceled',
-                        'cart_paypal'
+                        'tx_cartstripe.controller.order.payment.action.cancel.successfully_canceled',
+                        'cart_stripe'
                     )
                 );
 
@@ -205,8 +200,8 @@ class PaymentController extends ActionController
             } else {
                 $this->addFlashMessage(
                     LocalizationUtility::translate(
-                        'tx_cartpaypal.controller.order.payment.action.cancel.error_occured',
-                        'cart_paypal'
+                        'tx_cartstripe.controller.order.payment.action.cancel.error_occurred',
+                        'cart_stripe'
                     ),
                     '',
                     AbstractMessage::ERROR
@@ -215,8 +210,8 @@ class PaymentController extends ActionController
         } else {
             $this->addFlashMessage(
                 LocalizationUtility::translate(
-                    'tx_cartpaypal.controller.order.payment.action.cancel.access_denied',
-                    'cart_paypal'
+                    'tx_cartstripe.controller.order.payment.action.cancel.access_denied',
+                    'cart_stripe'
                 ),
                 '',
                 AbstractMessage::ERROR
@@ -242,6 +237,9 @@ class PaymentController extends ActionController
         $this->cartRepository->setDefaultQuerySettings($querySettings);
 
         $findOneByMethod = 'findOneBy' . $type;
-        $this->cart = $this->cartRepository->$findOneByMethod($hash);
+        $cart = $this->cartRepository->$findOneByMethod($hash);
+        if ($cart) {
+            $this->cart = $cart;
+        }
     }
 }
