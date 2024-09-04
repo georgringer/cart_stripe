@@ -23,10 +23,10 @@
   },
   "require": {
     "ext-curl": "*",
-    "typo3/cms-core": "^11.5",
-    "typo3/cms-extbase": "^11.5",
-    "typo3/cms-frontend": "^11.5",
-    "extcode/cart": "^8.0",
-    "stripe/stripe-php": "^13"
+    "typo3/cms-core": "^12.4",
+    "typo3/cms-extbase": "^12.4",
+    "typo3/cms-frontend": "^12.4",
+    "extcode/cart": "^9",
+    "stripe/stripe-php": "^15"
   }
 }

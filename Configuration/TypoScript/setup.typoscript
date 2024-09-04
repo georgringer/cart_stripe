@@ -1,16 +1,7 @@
 plugin.tx_cart {
     payments {
-        options {
-            29 {
-                provider = STRIPE
-                title = Stripe
-                extra = 0.00
-                taxClassId = 1
-                status = open
-            }
-        }
 
-        at {
+        countries.at {
             options.29 {
                 provider = STRIPE
                 title = Stripe
@@ -20,7 +11,7 @@ plugin.tx_cart {
             }
         }
 
-        de {
+        countries.de {
             options.29 {
                 provider = STRIPE
                 title = Stripe
@@ -29,7 +20,7 @@ plugin.tx_cart {
                 status = open
             }
         }
-        ch {
+        countries.ch {
             options.29 {
                 provider = STRIPE
                 title = Stripe

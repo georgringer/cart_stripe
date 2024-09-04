@@ -8,7 +8,7 @@ This extension is currently more a proof of concept and not ready for production
 
 - Install the extension
 - Provide the stripe API key (best is to set it in ENV variables)
-- Include the static TypoScript of the extension + Adopt the payment per country options
+- Copy the TypoScript of the extension + Adopt the payment per country options
 
 ## Todo
 

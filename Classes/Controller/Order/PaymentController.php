@@ -10,13 +10,17 @@ use Extcode\Cart\Domain\Repository\Order\PaymentRepository;
 use Extcode\Cart\Service\MailHandler;
 use Extcode\Cart\Service\SessionHandler;
 use Extcode\Cart\Utility\CartUtility;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerAwareTrait;
+use TYPO3\CMS\Backend\Utility\BackendUtility;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Log\LogManagerInterface;
 use TYPO3\CMS\Core\Messaging\AbstractMessage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
 use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
+use TYPO3\CMS\Extbase\Persistence\Generic\Backend;
+use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 use TYPO3\CMS\Extbase\Persistence\Generic\Typo3QuerySettings;
 use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
@@ -81,7 +85,7 @@ class PaymentController extends ActionController
             );
     }
 
-    public function successAction(): void
+    public function successAction(): ResponseInterface
     {
         if ($this->request->hasArgument('hash') && !empty($this->request->getArgument('hash'))) {
             $this->loadCartByHash($this->request->getArgument('hash'));
@@ -94,7 +98,7 @@ class PaymentController extends ActionController
                     if ($payment->getStatus() !== 'paid') {
                         $payment->setStatus('paid');
                         $this->paymentRepository->update($payment);
-                        $this->persistenceManager->persistAll();
+//                        $this->persistenceManager->persistAll();
 
 
                         $this->notify($orderItem);
@@ -102,11 +106,11 @@ class PaymentController extends ActionController
                     }
                 }
 
-                $this->redirect('show', 'Cart\Order', 'Cart', ['orderItem' => $orderItem]);
+                return $this->redirect('show', 'Cart\Order', 'Cart', ['orderItem' => $orderItem]);
             } else {
                 $this->addFlashMessage(
                     LocalizationUtility::translate(
-                        'tx_cartstripe.controller.order.payment.action.success.error_occured',
+                        'tx_cartstripe.controller.order.payment.action.success.error_occurred',
                         'cart_stripe'
                     ),
                     '',
@@ -123,6 +127,7 @@ class PaymentController extends ActionController
                 AbstractMessage::ERROR
             );
         }
+        return $this->htmlResponse();
     }
 
     protected function notify(Item $orderItem): void
@@ -133,7 +138,7 @@ class PaymentController extends ActionController
 
     protected function clearCart(int $pid)
     {
-        $this->sessionHandler->clear($pid);
+//        $this->sessionHandler->clearCart($pid);
 
         $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_billing_address_' . $pid, null);
         $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_shipping_address_' . $pid, null);
@@ -230,16 +235,28 @@ class PaymentController extends ActionController
 
     protected function loadCartByHash(string $hash, string $type = 'SHash'): void
     {
-        $querySettings = GeneralUtility::makeInstance(
-            Typo3QuerySettings::class
-        );
-        $querySettings->setStoragePageIds([$this->cartConf['settings']['order']['pid']]);
-        $this->cartRepository->setDefaultQuerySettings($querySettings);
+//        $querySettings = GeneralUtility::makeInstance(
+//            Typo3QuerySettings::class
+//        );
+//        $querySettings->setStoragePageIds([4,$this->cartConf['settings']['order']['pid']]);
+//        $this->cartRepository->setDefaultQuerySettings($querySettings);
+//
+//        $findOneByMethod = 'findOneBy' . $type;
+//        $cart = $this->cartRepository->findByUid(1);
+////        $cart = $this->cartRepository->$findOneByMethod($hash);
+//        DebuggerUtility::var_dump($cart);die;
+//        if ($cart) {
+//            $this->cart = $cart;
+//        }
+        $row = BackendUtility::getRecord('tx_cart_domain_model_cart', 1);
+        $cart = $row['cart'];
+        $row['cart'] = '';
+        $dataMapper = GeneralUtility::makeInstance(DataMapper::class);
+        $items = $dataMapper->map(Cart::class, [$row]);
+        /** @var Cart $cartObject */
+        $cartObject = $items[0];
+        $cartObject->setCart(unserialize($cart));
 
-        $findOneByMethod = 'findOneBy' . $type;
-        $cart = $this->cartRepository->$findOneByMethod($hash);
-        if ($cart) {
-            $this->cart = $cart;
-        }
+        $this->cart = $cartObject;
     }
 }

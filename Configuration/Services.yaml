@@ -19,10 +19,9 @@ services:
         event: Extcode\Cart\Event\Order\PaymentEvent
 
   GeorgRinger\CartStripe\EventListener\Order\Payment\ClearCart:
-    arguments:
-      $cartUtility: '@Extcode\Cart\Utility\CartUtility'
-      $parserUtility: '@Extcode\Cart\Utility\ParserUtility'
-      $sessionHandler: '@Extcode\Cart\Service\SessionHandler'
+#    arguments:
+#      $cartUtility: '@Extcode\Cart\Utility\CartUtility'
+#      $sessionHandler: '@Extcode\Cart\Service\SessionHandler'
     tags:
       - name: event.listener
         identifier: 'cart-stripe--order--payment--clear-cart'
