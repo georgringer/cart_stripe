@@ -13,6 +13,7 @@ use Extcode\Cart\Utility\CartUtility;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerAwareTrait;
 use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Log\LogManagerInterface;
 use TYPO3\CMS\Core\Messaging\AbstractMessage;
@@ -248,7 +249,22 @@ class PaymentController extends ActionController
 //        if ($cart) {
 //            $this->cart = $cart;
 //        }
-        $row = BackendUtility::getRecord('tx_cart_domain_model_cart', 1);
+//        var_dump($hash);die;
+        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)->getQueryBuilderForTable('tx_cart_domain_model_cart');
+        $row = $queryBuilder
+            ->select('*')
+            ->from('tx_cart_domain_model_cart')
+            ->where(
+                $queryBuilder->expr()->eq('s_hash', $queryBuilder->createNamedParameter($hash))
+            )
+            ->executeQuery()
+            ->fetchAssociative();
+
+        if (!$row) {
+            // todo exception
+            return;
+        }
+
         $cart = $row['cart'];
         $row['cart'] = '';
         $dataMapper = GeneralUtility::makeInstance(DataMapper::class);

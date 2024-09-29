@@ -72,7 +72,6 @@ class ProviderRedirect
     public function __invoke(PaymentEvent $event): void
     {
         $this->orderItem = $event->getOrderItem();
-
         if ($this->orderItem->getPayment()->getProvider() !== 'STRIPE') {
             return;
         }
