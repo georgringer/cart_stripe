@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace GeorgRinger\CartStripe\Controller\Order;
 
 use Extcode\Cart\Domain\Model\Cart;
+use Extcode\Cart\Domain\Model\Order\BillingAddress;
 use Extcode\Cart\Domain\Model\Order\Item;
+use Extcode\Cart\Domain\Model\Order\ShippingAddress;
 use Extcode\Cart\Domain\Repository\CartRepository;
 use Extcode\Cart\Domain\Repository\Order\PaymentRepository;
 use Extcode\Cart\Service\MailHandler;
@@ -101,7 +103,6 @@ class PaymentController extends ActionController
                         $this->paymentRepository->update($payment);
 //                        $this->persistenceManager->persistAll();
 
-
                         $this->notify($orderItem);
                         $this->clearCart($orderItem->getCartPid());
                     }
@@ -137,12 +138,22 @@ class PaymentController extends ActionController
         $this->sendSellerMail($orderItem);
     }
 
-    protected function clearCart(int $pid)
+    protected function clearCart(int $cartPid)
     {
-//        $this->sessionHandler->clearCart($pid);
+//        var_dump($cartPid);die;
+        $this->sessionHandler->clearCart(
+            (string)$cartPid);
+        $this->sessionHandler->writeAddress(
+            'billing_address_' . $cartPid,
+            GeneralUtility::makeInstance(BillingAddress::class)
+        );
+        $this->sessionHandler->writeAddress(
+            'shipping_address_' . $cartPid,
+            GeneralUtility::makeInstance(ShippingAddress::class)
+        );
 
-        $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_billing_address_' . $pid, null);
-        $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_shipping_address_' . $pid, null);
+        $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_billing_address_' . $cartPid, null);
+        $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_shipping_address_' . $cartPid, null);
         $GLOBALS['TSFE']->fe_user->storeSessionData();
     }
 
@@ -178,12 +189,15 @@ class PaymentController extends ActionController
         $mailHandler->sendSellerMail($orderItem);
     }
 
-    public function cancelAction(): void
+    public function cancelAction(): ResponseInterface
     {
         if ($this->request->hasArgument('hash') && !empty($this->request->getArgument('hash'))) {
             $this->loadCartByHash($this->request->getArgument('hash'), 'FHash');
 
             if ($this->cart) {
+//                return $this->htmlResponse('cancellednow');
+                return $this->redirect('show', 'Cart\Cart', 'Cart');
+
                 $orderItem = $this->cart->getOrderItem();
                 $payment = $orderItem->getPayment();
 
@@ -202,7 +216,7 @@ class PaymentController extends ActionController
                 );
 
 
-                $this->redirect('show', 'Cart\Cart', 'Cart');
+                return $this->redirect('show', 'Cart\Cart', 'Cart');
             } else {
                 $this->addFlashMessage(
                     LocalizationUtility::translate(
@@ -223,6 +237,7 @@ class PaymentController extends ActionController
                 AbstractMessage::ERROR
             );
         }
+        return $this->htmlResponse();
     }
 
 
@@ -231,7 +246,17 @@ class PaymentController extends ActionController
         $cart = $this->cart->getCart();
         $cart->resetOrderNumber();
         $cart->resetInvoiceNumber();
-        $this->sessionHandler->write($cart, $this->cartConf['settings']['cart']['pid']);
+        $cartPid = $this->cartConf['settings']['cart']['pid'];
+
+        $this->sessionHandler->clearCart($cartPid);
+        $this->sessionHandler->writeAddress(
+            'billing_address_' . $cartPid,
+            GeneralUtility::makeInstance(BillingAddress::class)
+        );
+        $this->sessionHandler->writeAddress(
+            'shipping_address_' . $cartPid,
+            GeneralUtility::makeInstance(ShippingAddress::class)
+        );
     }
 
     protected function loadCartByHash(string $hash, string $type = 'SHash'): void

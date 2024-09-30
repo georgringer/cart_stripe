@@ -6,13 +6,12 @@ $EM_CONF[$_EXTKEY] = [
     'category' => 'services',
     'author' => 'Georg Ringer',
     'author_email' => 'mail@ringer.it',
-    'author_company' => 'extco.de UG (haftungsbeschränkt)',
     'state' => 'alpha',
     'version' => '0.0.1',
     'constraints' => [
         'depends' => [
-            'typo3' => '11.5.0-11.5.99',
-            'cart' => '7.4.0',
+            'typo3' => '12.4.0-12.4.99',
+            'cart' => '9.0.0-9.99.99',
         ],
         'conflicts' => [],
         'suggests' => [],

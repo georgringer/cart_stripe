@@ -1,4 +1,7 @@
 plugin.tx_cart {
+    settings {
+        cart.pid = 5
+    }
     payments {
 
         countries.at {
@@ -8,6 +11,7 @@ plugin.tx_cart {
                 extra = 0.00
                 taxClassId = 1
                 status = open
+                preventClearCart = 1
             }
         }
 
@@ -18,6 +22,7 @@ plugin.tx_cart {
                 extra = 0.00
                 taxClassId = 1
                 status = open
+                preventClearCart = 1
             }
         }
         countries.ch {
@@ -27,6 +32,7 @@ plugin.tx_cart {
                 extra = 0.00
                 taxClassId = 1
                 status = open
+                preventClearCart = 1
             }
         }
     }
