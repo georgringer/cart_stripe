@@ -3,13 +3,14 @@ declare(strict_types=1);
 
 namespace GeorgRinger\CartStripe\Controller\Order;
 
+use Extcode\Cart\Controller\Cart\ActionController;
 use Extcode\Cart\Domain\Model\Cart;
 use Extcode\Cart\Domain\Model\Order\BillingAddress;
 use Extcode\Cart\Domain\Model\Order\Item;
 use Extcode\Cart\Domain\Model\Order\ShippingAddress;
 use Extcode\Cart\Domain\Repository\CartRepository;
 use Extcode\Cart\Domain\Repository\Order\PaymentRepository;
-use Extcode\Cart\Service\MailHandler;
+use Extcode\Cart\Event\Order\FinishEvent;
 use Extcode\Cart\Service\SessionHandler;
 use Extcode\Cart\Utility\CartUtility;
 use Psr\Http\Message\ResponseInterface;
@@ -21,7 +22,6 @@ use TYPO3\CMS\Core\Log\LogManagerInterface;
 use TYPO3\CMS\Core\Messaging\AbstractMessage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManagerInterface;
-use TYPO3\CMS\Extbase\Mvc\Controller\ActionController;
 use TYPO3\CMS\Extbase\Persistence\Generic\Backend;
 use TYPO3\CMS\Extbase\Persistence\Generic\Mapper\DataMapper;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
@@ -103,8 +103,8 @@ class PaymentController extends ActionController
                         $this->paymentRepository->update($payment);
 //                        $this->persistenceManager->persistAll();
 
-                        $this->notify($orderItem);
-                        $this->clearCart($orderItem->getCartPid());
+                        $finishEvent = new FinishEvent($this->cart, $orderItem, $this->configurations);
+                        $this->eventDispatcher->dispatch($finishEvent);
                     }
                 }
 
@@ -130,63 +130,6 @@ class PaymentController extends ActionController
             );
         }
         return $this->htmlResponse();
-    }
-
-    protected function notify(Item $orderItem): void
-    {
-        $this->sendBuyerMail($orderItem);
-        $this->sendSellerMail($orderItem);
-    }
-
-    protected function clearCart(int $cartPid)
-    {
-//        var_dump($cartPid);die;
-        $this->sessionHandler->clearCart(
-            (string)$cartPid);
-        $this->sessionHandler->writeAddress(
-            'billing_address_' . $cartPid,
-            GeneralUtility::makeInstance(BillingAddress::class)
-        );
-        $this->sessionHandler->writeAddress(
-            'shipping_address_' . $cartPid,
-            GeneralUtility::makeInstance(ShippingAddress::class)
-        );
-
-        $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_billing_address_' . $cartPid, null);
-        $GLOBALS['TSFE']->fe_user->setKey('ses', 'cart_shipping_address_' . $cartPid, null);
-        $GLOBALS['TSFE']->fe_user->storeSessionData();
-    }
-
-    /**
-     * Send a Mail to Buyer
-     *
-     * @param Item $orderItem
-     */
-    protected function sendBuyerMail(
-        Item $orderItem
-    )
-    {
-        $mailHandler = GeneralUtility::makeInstance(
-            MailHandler::class
-        );
-        $mailHandler->setCart($this->cart->getCart());
-        $mailHandler->sendBuyerMail($orderItem);
-    }
-
-    /**
-     * Send a Mail to Seller
-     *
-     * @param Item $orderItem
-     */
-    protected function sendSellerMail(
-        Item $orderItem
-    )
-    {
-        $mailHandler = GeneralUtility::makeInstance(
-            MailHandler::class
-        );
-        $mailHandler->setCart($this->cart->getCart());
-        $mailHandler->sendSellerMail($orderItem);
     }
 
     public function cancelAction(): ResponseInterface
