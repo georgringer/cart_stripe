@@ -26,7 +26,7 @@
     "typo3/cms-core": "^12.4",
     "typo3/cms-extbase": "^12.4",
     "typo3/cms-frontend": "^12.4",
-    "extcode/cart": "^9",
+    "extcode/cart": "^10",
     "stripe/stripe-php": "^15"
   }
 }

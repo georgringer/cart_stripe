@@ -37,7 +37,6 @@ class PaymentController extends ActionController
     protected SessionHandler $sessionHandler;
     protected CartRepository $cartRepository;
     protected PaymentRepository $paymentRepository;
-    protected ?Cart $cart = null;
 
     protected array $cartConf = [];
 
@@ -73,7 +72,7 @@ class PaymentController extends ActionController
         $this->cartUtility = $cartUtility;
     }
 
-    protected function initializeAction(): void
+    public function initializeAction(): void
     {
         $this->cartConf =
             $this->configurationManager->getConfiguration(
