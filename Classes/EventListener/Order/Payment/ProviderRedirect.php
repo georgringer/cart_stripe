@@ -81,13 +81,14 @@ class ProviderRedirect
         $cart = $this->saveCurrentCartToDatabase();
         $lineItems = [];
         foreach ($cart->getCart()->getProducts() as $product) {
+//            DebuggerUtility::var_dump($product);die;
             $lineItems[] = [
                 'price_data' => [
-                    'currency' => 'eur',
+                    'currency' => strtolower($cart->getCart()->getCurrencyCode()),
                     'product_data' => [
                         'name' => $product->getTitle(),
                     ],
-                    'unit_amount' => $product->getPrice() * 100,
+                    'unit_amount' => $product->getGross() * 100,
                 ],
                 'quantity' => $product->getQuantity(),
             ];
@@ -98,14 +99,35 @@ class ProviderRedirect
         Stripe::setApiKey($this->configuration->getStripeApiKey());
         $billingAddress = $this->orderItem->getBillingAddress();
 
-        $checkout_session = Session::create([
+        $configuration = [
             'line_items' => $lineItems,
             'mode' => 'payment',
             'customer_creation' => 'if_required',
             'customer_email' => $billingAddress ? $billingAddress->getEmail() : '',
             'success_url' => $this->getUrl('success', $this->cartSHash),
             'cancel_url' => $this->getUrl('cancel', $this->cartSHash),
-        ]);
+        ];
+
+        $shipping = $this->cart->getShipping();
+        if ($shipping) {
+//            DebuggerUtility::var_dump($shipping, 'shiping');
+            $configuration['shipping_options'] = [
+                [
+                    'shipping_rate_data' => [
+                        'type' => 'fixed_amount',
+                        'fixed_amount' => [
+                            'amount' => (int)($shipping->getGross() ?: $shipping->getConfig()['extra'] ?: 0),
+                            'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                        ],
+                        'display_name' => $shipping->getName() ?: $shipping->getConfig()['title'] ?: '',
+                    ],
+                ],
+
+            ];
+        }
+//        DebuggerUtility::var_dump($configuration);
+//        die;
+        $checkout_session = Session::create($configuration);
 
         header('HTTP/1.1 303 See Other');
         header('Location: ' . $checkout_session->url);

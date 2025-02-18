@@ -38,6 +38,9 @@ class PaymentController extends ActionController
     protected CartRepository $cartRepository;
     protected PaymentRepository $paymentRepository;
 
+    /** @var Cart */
+    protected $cartObject;
+
     protected array $cartConf = [];
 
     /**
@@ -85,15 +88,15 @@ class PaymentController extends ActionController
                 ConfigurationManagerInterface::CONFIGURATION_TYPE_FRAMEWORK,
                 'CartStripe'
             );
+        parent::initializeAction();
     }
 
     public function successAction(): ResponseInterface
     {
         if ($this->request->hasArgument('hash') && !empty($this->request->getArgument('hash'))) {
             $this->loadCartByHash($this->request->getArgument('hash'));
-
-            if ($this->cart) {
-                $orderItem = $this->cart->getOrderItem();
+            if ($this->cartObject) {
+                $orderItem = $this->cartObject->getOrderItem();
                 if ($orderItem) {
 
                     $payment = $orderItem->getPayment();
@@ -140,7 +143,7 @@ class PaymentController extends ActionController
 //                return $this->htmlResponse('cancellednow');
                 return $this->redirect('show', 'Cart\Cart', 'Cart');
 
-                $orderItem = $this->cart->getOrderItem();
+                $orderItem = $this->cartCart->getOrderItem();
                 $payment = $orderItem->getPayment();
 
                 $this->restoreCartSession();
@@ -232,14 +235,16 @@ class PaymentController extends ActionController
             return;
         }
 
-        $cart = $row['cart'];
-        $row['cart'] = '';
+        $unserializedCart = unserialize($row['serialized_cart']);
+//        DebuggerUtility::var_dump($unserializedCart);Die;
         $dataMapper = GeneralUtility::makeInstance(DataMapper::class);
         $items = $dataMapper->map(Cart::class, [$row]);
         /** @var Cart $cartObject */
         $cartObject = $items[0];
-        $cartObject->setCart(unserialize($cart));
-
-        $this->cart = $cartObject;
+        $cartObject->setCart($unserializedCart);
+//DebuggerUtility::var_dump($cartObject, '$cartObject');
+        $this->cart = $unserializedCart;
+        $this->cartObject = $cartObject;
+//        $this->initializeAction();
     }
 }
