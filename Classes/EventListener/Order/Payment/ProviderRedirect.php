@@ -79,6 +79,7 @@ class ProviderRedirect
         $this->cart = $event->getCart();
 
         $cart = $this->saveCurrentCartToDatabase();
+//        DebuggerUtility::var_dump($cart);die;
         $lineItems = [];
         foreach ($cart->getCart()->getProducts() as $product) {
 //            DebuggerUtility::var_dump($product);die;
@@ -88,11 +89,28 @@ class ProviderRedirect
                     'product_data' => [
                         'name' => $product->getTitle(),
                     ],
-                    'unit_amount' => $product->getGross() * 100,
+                    'unit_amount' => $product->getGross() * 100 / $product->getQuantity(),
                 ],
                 'quantity' => $product->getQuantity(),
             ];
         }
+
+        $payment = $this->cart->getPayment();
+        $payment_amount = (int)($payment->getGross() * 100 ?: $payment->getConfig()['extra'] * 100 ?: 0);
+        if ($payment && $payment_amount) {
+//            DebuggerUtility::var_dump($payment, 'payment'); die;
+            $lineItems[] = [
+                'price_data' => [
+                    'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                    'product_data' => [
+                        'name' => $payment->getName() ?: $payment->getConfig()['title'] ?: '',
+                    ],
+                    'unit_amount' => $payment_amount,
+                ],
+                'quantity' => 1,
+            ];
+        }
+
         $this->cartSHash = $cart->getSHash();
         $this->cartFHash = $cart->getFHash();
 
@@ -108,25 +126,22 @@ class ProviderRedirect
             'cancel_url' => $this->getUrl('cancel', $this->cartSHash),
         ];
 
+        $configuration['shipping_options'] = [];
         $shipping = $this->cart->getShipping();
         if ($shipping) {
-//            DebuggerUtility::var_dump($shipping, 'shiping');
-            $configuration['shipping_options'] = [
-                [
-                    'shipping_rate_data' => [
-                        'type' => 'fixed_amount',
-                        'fixed_amount' => [
-                            'amount' => (int)($shipping->getGross() ?: $shipping->getConfig()['extra'] ?: 0),
-                            'currency' => strtolower($cart->getCart()->getCurrencyCode()),
-                        ],
-                        'display_name' => $shipping->getName() ?: $shipping->getConfig()['title'] ?: '',
+//            DebuggerUtility::var_dump($shipping, 'shiping'); die;
+            $configuration['shipping_options'][] = [
+                'shipping_rate_data' => [
+                    'type' => 'fixed_amount',
+                    'fixed_amount' => [
+                        'amount' => (int)($shipping->getGross() * 100 ?: $shipping->getConfig()['extra'] * 100 ?: 0),
+                        'currency' => strtolower($cart->getCart()->getCurrencyCode()),
                     ],
+                    'display_name' => $shipping->getName() ?: $shipping->getConfig()['title'] ?: '',
                 ],
-
             ];
         }
-//        DebuggerUtility::var_dump($configuration);
-//        die;
+//        DebuggerUtility::var_dump($configuration); die;
         $checkout_session = Session::create($configuration);
 
         header('HTTP/1.1 303 See Other');
