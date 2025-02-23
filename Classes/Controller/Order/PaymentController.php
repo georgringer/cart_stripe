@@ -103,7 +103,7 @@ class PaymentController extends ActionController
                     if ($payment->getStatus() !== 'paid') {
                         $payment->setStatus('paid');
                         $this->paymentRepository->update($payment);
-//                        $this->persistenceManager->persistAll();
+                        $this->persistenceManager->persistAll();
 
                         $finishEvent = new FinishEvent($this->cart, $orderItem, $this->configurations);
                         $this->eventDispatcher->dispatch($finishEvent);
