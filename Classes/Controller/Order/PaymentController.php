@@ -141,16 +141,12 @@ class PaymentController extends ActionController
     public function cancelAction(): ResponseInterface
     {
         if ($this->request->hasArgument('hash') && !empty($this->request->getArgument('hash'))) {
-            $this->loadCartByHash($this->request->getArgument('hash'), 'FHash');
+            $this->loadCartByHash($this->request->getArgument('hash'));
 
-            if ($this->cart) {
-//                return $this->htmlResponse('cancellednow');
-                return $this->redirect('show', 'Cart\Cart', 'Cart');
+            if ($this->cartObject) {
 
-                $orderItem = $this->cartCart->getOrderItem();
+                $orderItem = $this->cartObject->getOrderItem();
                 $payment = $orderItem->getPayment();
-
-                $this->restoreCartSession();
 
                 $payment->setStatus('canceled');
 
