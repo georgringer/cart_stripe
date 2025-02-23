@@ -107,6 +107,10 @@ class PaymentController extends ActionController
 
                         $finishEvent = new FinishEvent($this->cart, $orderItem, $this->cartConf);
                         $this->eventDispatcher->dispatch($finishEvent);
+                        $this->sessionHandler->writeCart(
+                            $this->cartConf['settings']['cart']['pid'],
+                            $this->cartUtility->getNewCart($this->cartConf)
+                        );
                     }
                 }
 
