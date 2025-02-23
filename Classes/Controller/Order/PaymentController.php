@@ -105,7 +105,7 @@ class PaymentController extends ActionController
                         $this->paymentRepository->update($payment);
                         $this->persistenceManager->persistAll();
 
-                        $finishEvent = new FinishEvent($this->cart, $orderItem, $this->configurations);
+                        $finishEvent = new FinishEvent($this->cart, $orderItem, $this->cartConf);
                         $this->eventDispatcher->dispatch($finishEvent);
                     }
                 }
