@@ -1,15 +1,11 @@
 plugin.tx_cart {
-    settings {
-        cart.pid = 5
-    }
-
     payments {
 
         countries.at {
             options.29 {
                 provider = STRIPE
                 title = Stripe
-                extra = 1.11
+                extra = 0.00
                 taxClassId = 1
                 status = open
                 preventClearCart = 1
@@ -20,18 +16,17 @@ plugin.tx_cart {
             options.29 {
                 provider = STRIPE
                 title = Stripe
-                extra = 1.11
+                extra = 0.00
                 taxClassId = 1
                 status = open
                 preventClearCart = 1
             }
         }
-
         countries.ch {
             options.29 {
                 provider = STRIPE
                 title = Stripe
-                extra = 1.11
+                extra = 0.00
                 taxClassId = 1
                 status = open
                 preventClearCart = 1

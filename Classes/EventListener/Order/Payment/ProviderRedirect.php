@@ -77,12 +77,10 @@ class ProviderRedirect
         }
 
         $this->cart = $event->getCart();
-
         $cart = $this->saveCurrentCartToDatabase();
-//        DebuggerUtility::var_dump($cart);die;
+
         $lineItems = [];
         foreach ($cart->getCart()->getProducts() as $product) {
-//            DebuggerUtility::var_dump($product);die;
             $lineItems[] = [
                 'price_data' => [
                     'currency' => strtolower($cart->getCart()->getCurrencyCode()),
@@ -98,7 +96,6 @@ class ProviderRedirect
         $payment = $this->cart->getPayment();
         $payment_amount = (int)($payment->getGross() * 100 ?: $payment->getConfig()['extra'] * 100 ?: 0);
         if ($payment && $payment_amount) {
-//            DebuggerUtility::var_dump($payment, 'payment'); die;
             $lineItems[] = [
                 'price_data' => [
                     'currency' => strtolower($cart->getCart()->getCurrencyCode()),
@@ -129,7 +126,6 @@ class ProviderRedirect
         $configuration['shipping_options'] = [];
         $shipping = $this->cart->getShipping();
         if ($shipping) {
-//            DebuggerUtility::var_dump($shipping, 'shiping'); die;
             $configuration['shipping_options'][] = [
                 'shipping_rate_data' => [
                     'type' => 'fixed_amount',
@@ -141,7 +137,6 @@ class ProviderRedirect
                 ],
             ];
         }
-//        DebuggerUtility::var_dump($configuration); die;
         $checkout_session = Session::create($configuration);
 
         header('HTTP/1.1 303 See Other');

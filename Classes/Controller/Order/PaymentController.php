@@ -103,10 +103,14 @@ class PaymentController extends ActionController
                     if ($payment->getStatus() !== 'paid') {
                         $payment->setStatus('paid');
                         $this->paymentRepository->update($payment);
-//                        $this->persistenceManager->persistAll();
+                        $this->persistenceManager->persistAll();
 
-                        $finishEvent = new FinishEvent($this->cart, $orderItem, $this->configurations);
+                        $finishEvent = new FinishEvent($this->cart, $orderItem, $this->cartConf);
                         $this->eventDispatcher->dispatch($finishEvent);
+                        $this->sessionHandler->writeCart(
+                            $this->cartConf['settings']['cart']['pid'],
+                            $this->cartUtility->getNewCart($this->cartConf)
+                        );
                     }
                 }
 
@@ -137,16 +141,12 @@ class PaymentController extends ActionController
     public function cancelAction(): ResponseInterface
     {
         if ($this->request->hasArgument('hash') && !empty($this->request->getArgument('hash'))) {
-            $this->loadCartByHash($this->request->getArgument('hash'), 'FHash');
+            $this->loadCartByHash($this->request->getArgument('hash'));
 
-            if ($this->cart) {
-//                return $this->htmlResponse('cancellednow');
-                return $this->redirect('show', 'Cart\Cart', 'Cart');
+            if ($this->cartObject) {
 
-                $orderItem = $this->cartCart->getOrderItem();
+                $orderItem = $this->cartObject->getOrderItem();
                 $payment = $orderItem->getPayment();
-
-                $this->restoreCartSession();
 
                 $payment->setStatus('canceled');
 
