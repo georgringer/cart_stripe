@@ -123,6 +123,18 @@ class ProviderRedirect
             'cancel_url' => $this->getUrl('cancel', $this->cartSHash),
         ];
 
+        if( $this->cart->getCoupons()){
+            $coupon = \Stripe\Coupon::create([
+                'amount_off' => abs($this->cart->getDiscountGross()) * 100,
+                'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                'duration' => 'once',
+                'name' => implode(' / ', array_map(fn($coupon) => $coupon->getTitle(), $this->cart->getCoupons())),
+            ]);
+            $configuration['discounts'] = [
+                ['coupon' => $coupon->id],
+            ];
+        }
+
         $configuration['shipping_options'] = [];
         $shipping = $this->cart->getShipping();
         if ($shipping) {
