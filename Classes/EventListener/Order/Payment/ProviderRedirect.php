@@ -121,6 +121,19 @@ class ProviderRedirect
             'customer_email' => $billingAddress ? $billingAddress->getEmail() : '',
             'success_url' => $this->getUrl('success', $this->cartSHash),
             'cancel_url' => $this->getUrl('cancel', $this->cartSHash),
+            'client_reference_id' => $cart->getOrderItem()->getOrderNumber(),
+            // Meta data for the session
+            'metadata' => [
+                'orderNumber' => $cart->getOrderItem()->getOrderNumber(),
+            ],
+
+            // Information for the Payment Intent
+            'payment_intent_data' => [
+                'metadata' => [
+                    'orderNumber' => $cart->getOrderItem()->getOrderNumber(),
+                ],
+                'description' => LocalizationUtility::translate('LLL:EXT:cart/Resources/Private/Language/locallang.xlf:tx_cart_domain_model_order_item.order_number', 'cart') . ' #' . $cart->getOrderItem()->getOrderNumber(),
+            ],
         ];
 
         if( $this->cart->getCoupons()){
