@@ -18,6 +18,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
+use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 class ProviderRedirect
 {
@@ -267,17 +268,22 @@ class ProviderRedirect
         ]);
 
         foreach ($existingRates->data as $rate) {
-            if (abs($rate->percentage - $percentage) < 0.01) {
+            if ($rate->percentage === $percentage) {
                 return $rate->id;
             }
         }
 
         // Create new tax rate if none found
+        // use vat translation string but strip a possible '(%s %%)' from the string, because stripe will show it as well
+        $displayName = LocalizationUtility::translate('LLL:EXT:cart/Resources/Private/Language/locallang.xlf:tx_cart.tax_vat.value', 'cart');
+        if ($displayName && strpos($displayName, '(') !== false) {
+            $displayName = trim(substr($displayName, 0, strpos($displayName, '(')));
+        }
+
         $taxRate = TaxRate::create([
-//            'display_name' => 'MwSt',
+            'display_name' => $displayName ?: 'VAT',
             'percentage' => $percentage,
             'inclusive' => true,
-//            'country' => 'DE',
         ]);
 
         return $taxRate->id;
