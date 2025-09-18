@@ -1,13 +1,10 @@
 <?php
+
 declare(strict_types=1);
-
 namespace GeorgRinger\CartStripe\EventListener\Order\Payment;
-
 
 use Extcode\Cart\Domain\Model\Cart;
 use Extcode\Cart\Domain\Model\Cart\Cart as CartCart;
-use Extcode\Cart\Domain\Model\Cart\CartCoupon;
-use Extcode\Cart\Domain\Model\Cart\CartCouponPercentage;
 use Extcode\Cart\Domain\Model\Order\Item as OrderItem;
 use Extcode\Cart\Domain\Repository\CartRepository;
 use Extcode\Cart\Event\Order\PaymentEvent;
@@ -16,17 +13,14 @@ use http\Exception\UnexpectedValueException;
 use Stripe\Checkout\Session;
 use Stripe\Stripe;
 use Stripe\TaxRate;
-use TYPO3\CMS\Core\Core\Environment;
 use TYPO3\CMS\Core\TypoScript\TypoScriptService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
-use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
 
 class ProviderRedirect
 {
-
     protected ConfigurationManager $configurationManager;
     protected PersistenceManager $persistenceManager;
     protected TypoScriptService $typoScriptService;
@@ -49,8 +43,7 @@ class ProviderRedirect
         TypoScriptService $typoScriptService,
         UriBuilder $uriBuilder,
         CartRepository $cartRepository
-    )
-    {
+    ) {
         $this->configurationManager = $configurationManager;
         $this->persistenceManager = $persistenceManager;
         $this->typoScriptService = $typoScriptService;
@@ -73,7 +66,7 @@ class ProviderRedirect
     public function __invoke(PaymentEvent $event): void
     {
         $this->orderItem = $event->getOrderItem();
-        if ($this->orderItem->getPayment()->getProvider() !== 'STRIPE') {
+        if ($this->orderItem->getPayment()?->getProvider() !== 'STRIPE') {
             return;
         }
 
@@ -82,10 +75,10 @@ class ProviderRedirect
         Stripe::setApiKey($this->configuration->getStripeApiKey());
 
         $lineItems = [];
-        foreach ($cart->getCart()->getProducts() as $product) {
+        foreach ($cart->getCart()?->getProducts() as $product) {
             $lineItem = [
                 'price_data' => [
-                    'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                    'currency' => strtolower($cart->getCart()?->getCurrencyCode()),
                     'product_data' => [
                         'name' => $product->getTitle(),
                     ],
@@ -99,7 +92,7 @@ class ProviderRedirect
                 $taxPercentage = (float)$product->getTaxClass()->getCalc() * 100;
                 if ($taxPercentage > 0) {
                     $lineItem['tax_rates'] = [
-                        $this->getOrCreateTaxRateId($taxPercentage)
+                        $this->getOrCreateTaxRateId($taxPercentage),
                     ];
                 }
             }
@@ -125,7 +118,7 @@ class ProviderRedirect
                 $taxPercentage = (float)$payment->getTaxClass()->getCalc() * 100;
                 if ($taxPercentage > 0) {
                     $lineItem['tax_rates'] = [
-                        $this->getOrCreateTaxRateId($taxPercentage)
+                        $this->getOrCreateTaxRateId($taxPercentage),
                     ];
                 }
             }
@@ -169,7 +162,7 @@ class ProviderRedirect
                         $taxPercentage = (float)$shipping->getTaxClass()->getCalc() * 100;
                         if ($taxPercentage > 0) {
                             $shippingLineItem['tax_rates'] = [
-                                $this->getOrCreateTaxRateId($taxPercentage)
+                                $this->getOrCreateTaxRateId($taxPercentage),
                             ];
                         }
                     }
@@ -193,17 +186,17 @@ class ProviderRedirect
             'cancel_url' => $this->getUrl('cancel', $this->cartSHash),
         ];
 
-        if( $this->cart->getCoupons()){
+        if ($this->cart->getCoupons()) {
             $coupon = \Stripe\Coupon::create([
                 'amount_off' => abs($this->cart->getDiscountGross()) * 100,
                 'currency' => strtolower($cart->getCart()->getCurrencyCode()),
                 'duration' => 'once',
-                'name' => implode(' / ', array_map(fn($coupon) => $coupon->getTitle(), $this->cart->getCoupons())),
+                'name' => implode(' / ', array_map(fn ($coupon) => $coupon->getTitle(), $this->cart->getCoupons())),
             ]);
             $configuration['discounts'] = [
                 ['coupon' => $coupon->id],
             ];
-        }   
+        }
 
         $checkout_session = Session::create($configuration);
 
@@ -226,7 +219,6 @@ class ProviderRedirect
 
         return $cart;
     }
-
 
     protected function getUrl(string $action, string $hash): string
     {
