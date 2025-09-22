@@ -1,13 +1,10 @@
 <?php
+
 declare(strict_types=1);
-
 namespace GeorgRinger\CartStripe\EventListener\Order\Payment;
-
 
 use Extcode\Cart\Domain\Model\Cart;
 use Extcode\Cart\Domain\Model\Cart\Cart as CartCart;
-use Extcode\Cart\Domain\Model\Cart\CartCoupon;
-use Extcode\Cart\Domain\Model\Cart\CartCouponPercentage;
 use Extcode\Cart\Domain\Model\Order\Item as OrderItem;
 use Extcode\Cart\Domain\Repository\CartRepository;
 use Extcode\Cart\Event\Order\PaymentEvent;
@@ -15,17 +12,16 @@ use GeorgRinger\CartStripe\Configuration;
 use http\Exception\UnexpectedValueException;
 use Stripe\Checkout\Session;
 use Stripe\Stripe;
-use TYPO3\CMS\Core\Core\Environment;
+use Stripe\TaxRate;
 use TYPO3\CMS\Core\TypoScript\TypoScriptService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
-use TYPO3\CMS\Extbase\Utility\DebuggerUtility;
+use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 class ProviderRedirect
 {
-
     protected ConfigurationManager $configurationManager;
     protected PersistenceManager $persistenceManager;
     protected TypoScriptService $typoScriptService;
@@ -48,8 +44,7 @@ class ProviderRedirect
         TypoScriptService $typoScriptService,
         UriBuilder $uriBuilder,
         CartRepository $cartRepository
-    )
-    {
+    ) {
         $this->configurationManager = $configurationManager;
         $this->persistenceManager = $persistenceManager;
         $this->typoScriptService = $typoScriptService;
@@ -72,18 +67,19 @@ class ProviderRedirect
     public function __invoke(PaymentEvent $event): void
     {
         $this->orderItem = $event->getOrderItem();
-        if ($this->orderItem->getPayment()->getProvider() !== 'STRIPE') {
+        if ($this->orderItem->getPayment()?->getProvider() !== 'STRIPE') {
             return;
         }
 
         $this->cart = $event->getCart();
         $cart = $this->saveCurrentCartToDatabase();
+        Stripe::setApiKey($this->configuration->getStripeApiKey());
 
         $lineItems = [];
-        foreach ($cart->getCart()->getProducts() as $product) {
-            $lineItems[] = [
+        foreach ($cart->getCart()?->getProducts() as $product) {
+            $lineItem = [
                 'price_data' => [
-                    'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                    'currency' => strtolower($cart->getCart()?->getCurrencyCode()),
                     'product_data' => [
                         'name' => $product->getTitle(),
                     ],
@@ -91,12 +87,24 @@ class ProviderRedirect
                 ],
                 'quantity' => $product->getQuantity(),
             ];
+
+            // Add tax_rates if product has tax
+            if ($product->getTax() > 0 && $product->getTaxClass()) {
+                $taxPercentage = (float)$product->getTaxClass()->getCalc() * 100;
+                if ($taxPercentage > 0) {
+                    $lineItem['tax_rates'] = [
+                        $this->getOrCreateTaxRateId($taxPercentage),
+                    ];
+                }
+            }
+
+            $lineItems[] = $lineItem;
         }
 
         $payment = $this->cart->getPayment();
         $payment_amount = (int)($payment->getGross() * 100 ?: $payment->getConfig()['extra'] * 100 ?: 0);
         if ($payment && $payment_amount) {
-            $lineItems[] = [
+            $lineItem = [
                 'price_data' => [
                     'currency' => strtolower($cart->getCart()->getCurrencyCode()),
                     'product_data' => [
@@ -106,12 +114,68 @@ class ProviderRedirect
                 ],
                 'quantity' => 1,
             ];
+            // Add tax_rates if payment has tax
+            if ($payment->getTax() > 0 && $payment->getTaxClass()) {
+                $taxPercentage = (float)$payment->getTaxClass()->getCalc() * 100;
+                if ($taxPercentage > 0) {
+                    $lineItem['tax_rates'] = [
+                        $this->getOrCreateTaxRateId($taxPercentage),
+                    ];
+                }
+            }
+            $lineItems[] = $lineItem;
+        }
+
+        $shipping = $this->cart->getShipping();
+        if ($shipping) {
+            if ($this->configuration->isHandleShippingAsShippingOption()) {
+                // Handle as Stripe shipping option (without VAT)
+                $configuration['shipping_options'] = [];
+                $configuration['shipping_options'][] = [
+                    'shipping_rate_data' => [
+                        'type' => 'fixed_amount',
+                        'fixed_amount' => [
+                            'amount' => (int)($shipping->getGross() * 100 ?: $shipping->getConfig()['extra'] * 100 ?: 0),
+                            'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                        ],
+                        'display_name' => $shipping->getName() ?: $shipping->getConfig()['title'] ?: '',
+                        'tax_behavior' => 'inclusive',
+                        'tax_code' => 'txcd_92010001',
+                    ],
+                ];
+            } else {
+                // Handle as line item (with VAT) - default behavior
+                $shipping_amount = (int)($shipping->getGross() * 100 ?: $shipping->getConfig()['extra'] * 100 ?: 0);
+                if ($shipping_amount > 0) {
+                    $shippingLineItem = [
+                        'price_data' => [
+                            'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                            'product_data' => [
+                                'name' => $shipping->getName() ?: $shipping->getConfig()['title'] ?: 'Shipping',
+                            ],
+                            'unit_amount' => $shipping_amount,
+                        ],
+                        'quantity' => 1,
+                    ];
+
+                    // Add tax_rates if shipping has tax
+                    if ($shipping->getTax() > 0 && $shipping->getTaxClass()) {
+                        $taxPercentage = (float)$shipping->getTaxClass()->getCalc() * 100;
+                        if ($taxPercentage > 0) {
+                            $shippingLineItem['tax_rates'] = [
+                                $this->getOrCreateTaxRateId($taxPercentage),
+                            ];
+                        }
+                    }
+
+                    $lineItems[] = $shippingLineItem;
+                }
+            }
         }
 
         $this->cartSHash = $cart->getSHash();
         $this->cartFHash = $cart->getFHash();
 
-        Stripe::setApiKey($this->configuration->getStripeApiKey());
         $billingAddress = $this->orderItem->getBillingAddress();
 
         $configuration = [
@@ -136,32 +200,18 @@ class ProviderRedirect
             ],
         ];
 
-        if( $this->cart->getCoupons()){
+        if ($this->cart->getCoupons()) {
             $coupon = \Stripe\Coupon::create([
                 'amount_off' => abs($this->cart->getDiscountGross()) * 100,
                 'currency' => strtolower($cart->getCart()->getCurrencyCode()),
                 'duration' => 'once',
-                'name' => implode(' / ', array_map(fn($coupon) => $coupon->getTitle(), $this->cart->getCoupons())),
+                'name' => implode(' / ', array_map(fn ($coupon) => $coupon->getTitle(), $this->cart->getCoupons())),
             ]);
             $configuration['discounts'] = [
                 ['coupon' => $coupon->id],
             ];
         }
 
-        $configuration['shipping_options'] = [];
-        $shipping = $this->cart->getShipping();
-        if ($shipping) {
-            $configuration['shipping_options'][] = [
-                'shipping_rate_data' => [
-                    'type' => 'fixed_amount',
-                    'fixed_amount' => [
-                        'amount' => (int)($shipping->getGross() * 100 ?: $shipping->getConfig()['extra'] * 100 ?: 0),
-                        'currency' => strtolower($cart->getCart()->getCurrencyCode()),
-                    ],
-                    'display_name' => $shipping->getName() ?: $shipping->getConfig()['title'] ?: '',
-                ],
-            ];
-        }
         $checkout_session = Session::create($configuration);
 
         header('HTTP/1.1 303 See Other');
@@ -183,7 +233,6 @@ class ProviderRedirect
 
         return $cart;
     }
-
 
     protected function getUrl(string $action, string $hash): string
     {
@@ -219,5 +268,37 @@ class ProviderRedirect
             throw new UnexpectedValueException('No file found at path ' . $path, 1627993944);
         }
         require_once $path;
+    }
+
+    /**
+     * Get or create a Stripe tax rate for the given percentage
+     */
+    private function getOrCreateTaxRateId(float $percentage): string
+    {
+        // Try to find existing tax rate first
+        $existingRates = TaxRate::all([
+            'limit' => 100,
+        ]);
+
+        foreach ($existingRates->data as $rate) {
+            if ($rate->percentage === $percentage) {
+                return $rate->id;
+            }
+        }
+
+        // Create new tax rate if none found
+        // use vat translation string but strip a possible '(%s %%)' from the string, because stripe will show it as well
+        $displayName = LocalizationUtility::translate('LLL:EXT:cart/Resources/Private/Language/locallang.xlf:tx_cart.tax_vat.value', 'cart');
+        if ($displayName && strpos($displayName, '(') !== false) {
+            $displayName = trim(substr($displayName, 0, strpos($displayName, '(')));
+        }
+
+        $taxRate = TaxRate::create([
+            'display_name' => $displayName ?: 'VAT',
+            'percentage' => $percentage,
+            'inclusive' => true,
+        ]);
+
+        return $taxRate->id;
     }
 }

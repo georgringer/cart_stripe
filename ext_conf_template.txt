@@ -2,5 +2,8 @@
 # cat=Feature; type=string; label=Stripe API key: Stripe API key
 stripeApiKey =
 
+# cat=Feature; type=boolean; label=Handle shipping fee as shipping option: If enabled, shipping costs are handled as Stripe shipping options (without VAT). If disabled (default), they are treated as regular line items (with VAT) to match EXT:cart calculations. Note: Stripe Tax is not supported by cart_stripe.
+handleShippingAsShippingOption =
+
 # cat=Feature; type=string; label=If not using composer, use this path to load the Stripe library: Path to Stripe library
 nonComposerAutoloadPath =
