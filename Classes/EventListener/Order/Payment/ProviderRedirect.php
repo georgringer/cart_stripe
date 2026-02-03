@@ -3,6 +3,7 @@
 declare(strict_types=1);
 namespace GeorgRinger\CartStripe\EventListener\Order\Payment;
 
+use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 use Extcode\Cart\Domain\Model\Cart;
 use Extcode\Cart\Domain\Model\Cart\Cart as CartCart;
 use Extcode\Cart\Domain\Model\Cart\ServiceInterface;
@@ -12,6 +13,7 @@ use Extcode\Cart\Domain\Repository\CartRepository;
 use Extcode\Cart\Event\Order\PaymentEvent;
 use GeorgRinger\CartStripe\Configuration;
 use http\Exception\UnexpectedValueException;
+use Psr\Http\Message\ServerRequestInterface;
 use Stripe\Checkout\Session;
 use Stripe\Coupon;
 use Stripe\Stripe;
@@ -19,6 +21,8 @@ use Stripe\TaxRate;
 use TYPO3\CMS\Core\TypoScript\TypoScriptService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
+use TYPO3\CMS\Extbase\Mvc\ExtbaseRequestParameters;
+use TYPO3\CMS\Extbase\Mvc\Request;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
@@ -248,11 +252,27 @@ class ProviderRedirect
         ];
 
         return $this->uriBuilder->reset()
+            ->setRequest($this->getExtbaseRequest())
             ->setTargetPageUid($pid)
             ->setTargetPageType((int)$this->cartStripeConfiguration['redirectTypeNum'])
             ->setCreateAbsoluteUri(true)
             ->setArguments($arguments)
             ->build();
+    }
+
+    private function getExtbaseRequest(): Request
+    {
+        /** @var ServerRequestInterface $request */
+        $request = $GLOBALS['TYPO3_REQUEST'];
+
+        // We have to provide an Extbase request object because UriBuilder needs a ContentObjectRenderer
+        $extbaseRequest = new Request(
+            $request
+                ->withAttribute('extbase', new ExtbaseRequestParameters())
+                ->withAttribute('currentContentObject', GeneralUtility::makeInstance(ContentObjectRenderer::class)),
+        );
+
+        return $extbaseRequest;
     }
 
     private function loadApi(): void
