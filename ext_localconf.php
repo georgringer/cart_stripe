@@ -1,12 +1,15 @@
 <?php
 
-\TYPO3\CMS\Extbase\Utility\ExtensionUtility::configurePlugin(
+use GeorgRinger\CartStripe\Controller\Order\PaymentController;
+use TYPO3\CMS\Extbase\Utility\ExtensionUtility;
+
+ExtensionUtility::configurePlugin(
     'CartStripe',
     'Cart',
     [
-        \GeorgRinger\CartStripe\Controller\Order\PaymentController::class => 'success, cancel, notify',
+        PaymentController::class => 'success, cancel, notify',
     ],
     [
-        \GeorgRinger\CartStripe\Controller\Order\PaymentController::class => 'success, cancel, notify',
+        PaymentController::class => 'success, cancel, notify',
     ]
 );
