@@ -3,54 +3,55 @@
 declare(strict_types=1);
 namespace GeorgRinger\CartStripe\EventListener\Order\Payment;
 
+use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
 use Extcode\Cart\Domain\Model\Cart;
 use Extcode\Cart\Domain\Model\Cart\Cart as CartCart;
+use Extcode\Cart\Domain\Model\Cart\ServiceInterface;
+use Extcode\Cart\Domain\Model\Order\BillingAddress;
 use Extcode\Cart\Domain\Model\Order\Item as OrderItem;
 use Extcode\Cart\Domain\Repository\CartRepository;
 use Extcode\Cart\Event\Order\PaymentEvent;
 use GeorgRinger\CartStripe\Configuration;
 use http\Exception\UnexpectedValueException;
+use Psr\Http\Message\ServerRequestInterface;
 use Stripe\Checkout\Session;
+use Stripe\Coupon;
 use Stripe\Stripe;
 use Stripe\TaxRate;
 use TYPO3\CMS\Core\TypoScript\TypoScriptService;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Extbase\Configuration\ConfigurationManager;
+use TYPO3\CMS\Extbase\Mvc\ExtbaseRequestParameters;
+use TYPO3\CMS\Extbase\Mvc\Request;
 use TYPO3\CMS\Extbase\Mvc\Web\Routing\UriBuilder;
 use TYPO3\CMS\Extbase\Persistence\Generic\PersistenceManager;
 use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 class ProviderRedirect
 {
-    protected ConfigurationManager $configurationManager;
-    protected PersistenceManager $persistenceManager;
-    protected TypoScriptService $typoScriptService;
-    protected UriBuilder $uriBuilder;
-    protected CartRepository $cartRepository;
-    protected array $paymentQuery = [];
     protected OrderItem $orderItem;
 
     protected CartCart $cart;
 
     protected string $cartSHash = '';
     protected string $cartFHash = '';
+    /**
+     * @var array<mixed>
+     */
     protected array $cartStripeConfiguration = [];
+    /**
+     * @var array<mixed>
+     */
     protected array $cartConf = [];
     protected Configuration $configuration;
 
     public function __construct(
-        ConfigurationManager $configurationManager,
-        PersistenceManager $persistenceManager,
-        TypoScriptService $typoScriptService,
-        UriBuilder $uriBuilder,
-        CartRepository $cartRepository
+        protected ConfigurationManager $configurationManager,
+        protected PersistenceManager $persistenceManager,
+        protected TypoScriptService $typoScriptService,
+        protected UriBuilder $uriBuilder,
+        protected CartRepository $cartRepository
     ) {
-        $this->configurationManager = $configurationManager;
-        $this->persistenceManager = $persistenceManager;
-        $this->typoScriptService = $typoScriptService;
-        $this->uriBuilder = $uriBuilder;
-        $this->cartRepository = $cartRepository;
-
         $this->cartConf = $this->configurationManager->getConfiguration(
             ConfigurationManager::CONFIGURATION_TYPE_FRAMEWORK,
             'Cart'
@@ -76,10 +77,10 @@ class ProviderRedirect
         Stripe::setApiKey($this->configuration->getStripeApiKey());
 
         $lineItems = [];
-        foreach ($cart->getCart()?->getProducts() as $product) {
+        foreach ($cart->getCart()?->getProducts() ?? [] as $product) {
             $lineItem = [
                 'price_data' => [
-                    'currency' => strtolower($cart->getCart()?->getCurrencyCode()),
+                    'currency' => strtolower((string)$cart->getCart()?->getCurrencyCode()),
                     'product_data' => [
                         'name' => $product->getTitle(),
                     ],
@@ -101,12 +102,13 @@ class ProviderRedirect
             $lineItems[] = $lineItem;
         }
 
+        /** @var ?ServiceInterface $payment */
         $payment = $this->cart->getPayment();
-        $payment_amount = (int)($payment->getGross() * 100 ?: $payment->getConfig()['extra'] * 100 ?: 0);
+        $payment_amount = (int)($payment?->getGross() * 100 ?: $payment?->getConfig()['extra'] * 100 ?: 0);
         if ($payment && $payment_amount) {
             $lineItem = [
                 'price_data' => [
-                    'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                    'currency' => strtolower($cart->getCart()?->getCurrencyCode() ?? ''),
                     'product_data' => [
                         'name' => $payment->getName() ?: $payment->getConfig()['title'] ?: '',
                     ],
@@ -127,7 +129,7 @@ class ProviderRedirect
         }
 
         $shipping = $this->cart->getShipping();
-        if ($shipping) {
+        if ($shipping instanceof ServiceInterface) {
             if ($this->configuration->isHandleShippingAsShippingOption()) {
                 // Handle as Stripe shipping option (without VAT)
                 $configuration['shipping_options'] = [];
@@ -136,7 +138,7 @@ class ProviderRedirect
                         'type' => 'fixed_amount',
                         'fixed_amount' => [
                             'amount' => (int)($shipping->getGross() * 100 ?: $shipping->getConfig()['extra'] * 100 ?: 0),
-                            'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                            'currency' => strtolower($cart->getCart()?->getCurrencyCode() ?? ''),
                         ],
                         'display_name' => $shipping->getName() ?: $shipping->getConfig()['title'] ?: '',
                         'tax_behavior' => 'inclusive',
@@ -149,7 +151,7 @@ class ProviderRedirect
                 if ($shipping_amount > 0) {
                     $shippingLineItem = [
                         'price_data' => [
-                            'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                            'currency' => strtolower($cart->getCart()?->getCurrencyCode() ?? ''),
                             'product_data' => [
                                 'name' => $shipping->getName() ?: $shipping->getConfig()['title'] ?: 'Shipping',
                             ],
@@ -182,28 +184,31 @@ class ProviderRedirect
             'line_items' => $lineItems,
             'mode' => 'payment',
             'customer_creation' => 'if_required',
-            'customer_email' => $billingAddress ? $billingAddress->getEmail() : '',
+            'customer_email' => $billingAddress instanceof BillingAddress ? $billingAddress->getEmail() : '',
             'success_url' => $this->getUrl('success', $this->cartSHash),
             'cancel_url' => $this->getUrl('cancel', $this->cartSHash),
-            'client_reference_id' => $cart->getOrderItem()->getOrderNumber(),
+            'client_reference_id' => $cart->getOrderItem()?->getOrderNumber(),
             // Meta data for the session
             'metadata' => [
-                'orderNumber' => $cart->getOrderItem()->getOrderNumber(),
+                'orderNumber' => $cart->getOrderItem()?->getOrderNumber(),
             ],
 
             // Information for the Payment Intent
             'payment_intent_data' => [
                 'metadata' => [
-                    'orderNumber' => $cart->getOrderItem()->getOrderNumber(),
+                    'orderNumber' => $cart->getOrderItem()?->getOrderNumber(),
                 ],
-                'description' => LocalizationUtility::translate('LLL:EXT:cart/Resources/Private/Language/locallang.xlf:tx_cart_domain_model_order_item.order_number', 'cart') . ' #' . $cart->getOrderItem()->getOrderNumber(),
+                'description' => LocalizationUtility::translate(
+                    'LLL:EXT:cart/Resources/Private/Language/locallang.xlf:tx_cart_domain_model_order_item.order_number',
+                    'cart') .
+                    ' #' . $cart->getOrderItem()?->getOrderNumber(),
             ],
         ];
 
         if ($this->cart->getCoupons()) {
-            $coupon = \Stripe\Coupon::create([
+            $coupon = Coupon::create([
                 'amount_off' => abs($this->cart->getDiscountGross()) * 100,
-                'currency' => strtolower($cart->getCart()->getCurrencyCode()),
+                'currency' => strtolower($cart->getCart()?->getCurrencyCode() ?? ''),
                 'duration' => 'once',
                 'name' => implode(' / ', array_map(fn ($coupon) => $coupon->getTitle(), $this->cart->getCoupons())),
             ]);
@@ -226,8 +231,7 @@ class ProviderRedirect
 
         $cart->setOrderItem($this->orderItem);
         $cart->setCart($this->cart);
-        $cart->setPid((int)$this->cartConf['settings']['order']['pid']);
-
+        $cart->setPid(max(0, (int)($this->cartConf['settings']['order']['pid'] ?? 0)));
         $this->cartRepository->add($cart);
         $this->persistenceManager->persistAll();
 
@@ -248,11 +252,27 @@ class ProviderRedirect
         ];
 
         return $this->uriBuilder->reset()
+            ->setRequest($this->getExtbaseRequest())
             ->setTargetPageUid($pid)
             ->setTargetPageType((int)$this->cartStripeConfiguration['redirectTypeNum'])
             ->setCreateAbsoluteUri(true)
             ->setArguments($arguments)
             ->build();
+    }
+
+    private function getExtbaseRequest(): Request
+    {
+        /** @var ServerRequestInterface $request */
+        $request = $GLOBALS['TYPO3_REQUEST'];
+
+        // We have to provide an Extbase request object because UriBuilder needs a ContentObjectRenderer
+        $extbaseRequest = new Request(
+            $request
+                ->withAttribute('extbase', new ExtbaseRequestParameters())
+                ->withAttribute('currentContentObject', GeneralUtility::makeInstance(ContentObjectRenderer::class)),
+        );
+
+        return $extbaseRequest;
     }
 
     private function loadApi(): void
@@ -261,7 +281,7 @@ class ProviderRedirect
             return;
         }
         $path = $this->configuration->getNonComposerAutoloadPath();
-        if (empty($path)) {
+        if ($path === '' || $path === '0') {
             throw new UnexpectedValueException('No path to non composer autoload found', 1627993943);
         }
         if (!is_file($path)) {
@@ -289,8 +309,8 @@ class ProviderRedirect
         // Create new tax rate if none found
         // use vat translation string but strip a possible '(%s %%)' from the string, because stripe will show it as well
         $displayName = LocalizationUtility::translate('LLL:EXT:cart/Resources/Private/Language/locallang.xlf:tx_cart.tax_vat.value', 'cart');
-        if ($displayName && strpos($displayName, '(') !== false) {
-            $displayName = trim(substr($displayName, 0, strpos($displayName, '(')));
+        if ($displayName && str_contains($displayName, '(')) {
+            $displayName = trim(substr($displayName, 0, strpos($displayName, '(') ?: null));
         }
 
         $taxRate = TaxRate::create([
