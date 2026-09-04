@@ -14,7 +14,7 @@ use Extcode\Cart\Service\SessionHandler;
 use Extcode\Cart\Utility\CartUtility;
 use GeorgRinger\CartStripe\Service\StripeApi;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
 use Stripe\Checkout\Session;
 use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Log\LogManager;
@@ -29,7 +29,7 @@ use TYPO3\CMS\Extbase\Utility\LocalizationUtility;
 
 class PaymentController extends ActionController
 {
-    use LoggerAwareTrait;
+    protected LoggerInterface $logger;
 
     protected ?Cart $cartObject = null;
 
